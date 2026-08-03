@@ -1,0 +1,44 @@
+%% Glitchy Guesser — updated site architecture
+%% Number-guessing game (Streamlit) + Google Gemini AI help bubble
+flowchart TD
+    User([👤 Player])
+
+    subgraph Browser["🌐 Browser — Streamlit UI (app.py)"]
+        Sidebar["⚙️ Settings sidebar<br/>Difficulty · Attempts · Range"]
+        GameUI["🎮 Game panel<br/>Guess input · Submit · New Game · Hint"]
+        Debug["🔍 Developer Debug Info<br/>Secret · Attempts · Score · History"]
+        Bubble["💬 Help bubble (st.popover)<br/>Chat panel · message box · Send"]
+        Notice["👇 'Click the bubble for help' caption"]
+    end
+
+    subgraph Logic["🧠 Game logic"]
+        LU["logic_utils.py<br/>check_guess(guess, secret)"]
+        Score["update_score() · parse_guess()<br/>get_range_for_difficulty()"]
+    end
+
+    State["🗃️ st.session_state<br/>secret · attempts · score<br/>status · history · chat_messages"]
+
+    subgraph AI["🤖 AI chatbot"]
+        Client["get_gemini_client()<br/>@st.cache_resource"]
+        Stream["stream_reply()<br/>builds contents + system prompt"]
+    end
+
+    Secrets["🔐 .streamlit/secrets.toml<br/>GEMINI_API_KEY (git-ignored)"]
+    Gemini["☁️ Google Gemini API<br/>model: gemini-flash-latest"]
+
+    User -->|plays / clicks bubble| Browser
+    Notice -.points to.-> Bubble
+
+    GameUI -->|submit guess| LU
+    LU --> Score
+    Score --> State
+    GameUI <-->|read / write| State
+    State --> Debug
+
+    Bubble -->|user message| Stream
+    Client --> Stream
+    Secrets -->|API key| Client
+    Stream -->|generate_content_stream| Gemini
+    Gemini -->|reply text| Stream
+    Stream -->|append reply| State
+    State -->|chat history| Bubble

@@ -1,68 +1,93 @@
-# 🎮 Game Glitch Investigator: The Impossible Guesser
+1. Explicitly name your original project (from Modules 1-3) and provide a 2-3 sentence summary of its original goals and capabilities.
+I enhanced the gameglitch project which is from module 1 week 1 and 2
 
-## 🚨 The Situation
+2. Title and Summary: What your project does and why it matters.
+Along with the help of clude, I was able to implement a AI chat bot on the gameglitch stream lit site which which acts a helper to the users that are interacting with the game. 
 
-You asked an AI to build a simple "Number Guessing Game" using Streamlit.
-It wrote the code, ran away, and now the game is unplayable. 
+3. Architecture Overview: A short explanation of your system diagram.
 
-- You can't win.
-- The hints lie to you.
-- The secret number seems to have commitment issues.
+The system is a single-process Streamlit web app (Glitchy Guesser, a number-guessing game) with an embedded AI chatbot powered by Google Gemini (gemini-flash-latest). It separates two decoupled subsystems:
 
-## 🛠️ Setup
+- Game Engine (deterministic core): Session state in st.session_state holds the secret number, attempts, score, and status. Pure logic functions — get_range_for_difficulty(), parse_guess(), update_score(), and check_guess() (from logic_utils) — drive difficulty, input parsing, and scoring.
 
-1. Install dependencies: `pip install -r requirements.txt`
-2. Run the broken app: `python -m streamlit run app.py`
+- AI Helper (the enhancement): A chat bubble (st.popover) lets players ask for hints or strategy. get_gemini_client() does cached, key-aware client init (reads from Streamlit secrets or env vars and degrades gracefully if no key is present). validate_user_input() and generate_reply() form the request pipeline that cleans input, trims context, calls Gemini, and returns a safe result. A dedicated logger records every request, reply, rejection, and error to chatbot.log.
 
-## 🕵️‍♂️ Your Mission
+Data flow:
+User → validate_user_input() → append to chat history → generate_reply() [trim to last 20 turns → Gemini API] → on success: append assistant reply; on error: roll back the user turn.
 
-1. **Play the game.** Open the "Developer Debug Info" tab in the app to see the secret number. Try to win.
-2. **Find the State Bug.** Why does the secret number change every time you click "Submit"? Ask ChatGPT: *"How do I keep a variable from resetting in Streamlit when I click a button?"*
-3. **Fix the Logic.** The hints ("Higher/Lower") are wrong. Fix them.
-4. **Refactor & Test.** - Move the logic into `logic_utils.py`.
-   - Run `pytest` in your terminal.
-   - Keep fixing until all tests pass!
+A guardrail layer wraps the AI path end-to-end: input validation (500-char cap), context capping (20 messages), output capping (1024 tokens), a 30s timeout, and fail-safe error handling so an API call never crashes the app.
 
-## 📝 Document Your Experience
+The key architectural idea is separation of concerns: the deterministic game logic and the probabilistic AI helper are decoupled, so the AI runs as an optional, self-contained module that fails gracefully without affecting gameplay.
 
-- [x] **Describe the game's purpose.** Glitchy Guesser is a number-guessing game built with Streamlit. The app picks a secret number within a range that depends on the chosen difficulty (Easy 1–20, Normal 1–100, Hard 1–50), and the player tries to guess it within a limited number of attempts. After each guess the game gives a "higher/lower" hint and updates the score.
+4. Setup Instructions: Step-by-step directions to run your code.
 
-- [x] **Detail which bugs you found.**
-  - **Wrong direction hint:** On even-numbered attempts the secret was cast to a string (`str(secret)`), so comparing the integer guess to a string raised a `TypeError`. The fallback path then compared the values as *text* (e.g. `"0" > "42"`), which produced the wrong hint — guessing a low number like `0` told the player to "Go LOWER" instead of "Go HIGHER".
-  - **Swapped outcome labels:** A guess below the secret was labeled `"Too High"`, contradicting its own "Go HIGHER" message.
-  - **Hardcoded range text:** The prompt always read "between 1 and 100" even on Easy (1–20) or Hard (1–50).
-  - **Broken tests:** The existing tests compared `check_guess(...)` to a plain string, but the function returns a `(outcome, message)` tuple, so they failed.
+Prerequisites: Python 3.9+ and a Google Gemini API key (get one free at https://aistudio.google.com/apikey).
 
-- [x] **Explain what fixes you applied.**
-  - Rewrote `check_guess` to compare numerically and return correct, consistent labels: a guess below the secret → `"Too Low"` / "Go HIGHER", above → `"Too High"` / "Go LOWER".
-  - Removed the even-attempt `str(secret)` conversion in `app.py` that caused the type mismatch.
-  - Moved `check_guess` into `logic_utils.py` and imported it into `app.py`.
-  - Made the guess prompt show the real difficulty range instead of a hardcoded 1–100.
-  - Fixed the pre-existing tests to unpack the tuple and added a regression test (`test_low_guess_says_go_higher`) that locks in the `0 → "Go HIGHER"` behavior.
+Step 1 — Open a terminal in the project folder:
+    cd applied-ai-system-final
 
-## 📸 Demo Walkthrough
+Step 2 — (Recommended) Create and activate a virtual environment:
+    python3 -m venv .venv
+    source .venv/bin/activate        # macOS/Linux
+    .venv\Scripts\activate           # Windows
 
-A sample playthrough on **Normal** difficulty (secret number is **70**, range 1–100):
+Step 3 — Install the dependencies:
+    pip install -r requirements.txt
 
-1. The game starts and prompts: *"Guess a number between 1 and 100."*
-2. User enters **40** → the guess is below the secret, so the game returns **"Too Low" — 📈 Go HIGHER!** (this is the corrected behavior; before the fix, low guesses could wrongly say "Go LOWER").
-3. User enters **80** → the guess is above the secret, so the game returns **"Too High" — 📉 Go LOWER!**
-4. The score updates after each guess based on the outcome and attempt number, and the "Attempts left" counter ticks down.
-5. User enters **70** → exact match, so the game returns **"🎉 Correct!"**, shows balloons, reveals the secret, and displays the final score.
-6. The game switches to a "won" state; starting a **New Game** picks a fresh secret and resets the round.
+Step 4 — Provide your Gemini API key using ONE of these options:
+    Option A (Streamlit secrets): add this line to .streamlit/secrets.toml
+        GEMINI_API_KEY = "your-api-key-here"
+    Option B (environment variable):
+        export GEMINI_API_KEY="your-api-key-here"   # macOS/Linux
+        set GEMINI_API_KEY=your-api-key-here         # Windows
+    Note: The game itself runs without a key — the AI helper simply shows a
+    "No Gemini API key found" message until a key is provided.
 
-**Edge case (regression check):** entering **0** correctly responds with **"Go HIGHER!"** — the exact input that triggered the original direction bug.
+Step 5 — Launch the app:
+    streamlit run app.py
 
-**Screenshot** *(optional)*: <!-- Insert a screenshot of your fixed, winning game here -->
+Step 6 — Open the app in your browser at http://localhost:8501 (Streamlit
+usually opens it automatically). Play the game, then click the
+"💬 Need help? Chat with me!" bubble to talk to the AI helper.
 
-## 🧪 Test Results
+Optional — Run the tests:
+    pytest
+5. Sample Interactions: Include at least 2-3 examples of inputs and the resulting AI outputs to demonstrate the system is functional.
 
-```
-# Paste your pytest output here, e.g.:
-# pytest tests/
-# ========================= X passed in 0.XXs =========================
-```
+These are real exchanges captured from the running app's AI helper (model: gemini-flash-latest). The chatbot.log confirms the requests were served (e.g. "Model reply OK: 377 chars in 3.50s").
 
-## 🚀 Stretch Features
+Example 1
+User: How to beat the game
+AI: The best strategy to win fast is binary search! Always guess the exact middle of your remaining range (for example, start with 50 if the range is 1 to 100). That cuts the remaining possibilities in half every single time.
 
-- [ ] [If you choose to complete Challenge 4, describe the Enhanced UI changes here — a screenshot is optional]
+Just keep a close eye on the feedback—since this is Glitchy Guesser, some hints might try to trick you!
+
+What range are you playing with right now?
+
+Example 2
+User: What is the purpose of the game
+AI: The main goal is to guess the hidden number in as few tries as possible!
+
+The fun twist is outsmarting the game itself—you have to use your logic to spot when a "glitch" is trying to throw you off course.
+
+Are the glitches giving you a hard time, or are you holding your own?
+
+6. Design Decisions: Why you built it this way, and what trade-offs you made.
+I built the chatbot this way because I think its enhances the UX and the UI looks cohesive
+
+7. Testing Summary: What worked, what didn't, and what you learned.
+At first I did not know how to configure the API key but I eventually figured it out. Cluade helped me to add the API key to the gitignore so that it wouldnt be committed to the publc which I thibk was a good ctach
+
+8. Reflection: A brief note on what this project taught you about AI and problem-solving. Overall, this project taught me the capabilities of AI and what can be achieved. I think AI tools are really powerful at turning what might be days of debugging work into 10 minutes, but I also believe a human in the loop is still required, because hallucinations do happen and AI tends to deviate from the scope at times, sometimes suggesting additions that are not relevant or too grand.
+
+Reliability and Evaluation:
+Guradrails implemented: 
+Input validation — validate_user_input() rejects empty/whitespace and messages over MAX_INPUT_CHARS (500); the text box also enforces max_chars.
+Context cap — Only the last MAX_HISTORY_MESSAGES (20) turns are sent — bounds cost/latency and runaway context.
+Output cap — max_output_tokens=1024 limits reply length.
+Timeout — 30s request timeout so a stuck call can't hang the app.
+Fail-safe errors — generate_reply() wraps the API call in try/except — it never raises. Errors are logged and returned as a friendly message; the unanswered user turn is rolled back so history stays consistent.
+Empty-reply fallback — If the model returns nothing, the user gets a "try rephrasing" message instead of a blank.
+Missing key — Notify that the Api Key is Missing
+
+All test case passed and the AI chatbot functions as expected.

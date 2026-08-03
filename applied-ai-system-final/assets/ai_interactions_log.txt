@@ -1,0 +1,47 @@
+========================================================================
+GLITCHY GUESSER — AI HELPER INTERACTIONS & LOGS
+Model: gemini-flash-latest
+========================================================================
+
+------------------------------------------------------------------------
+SECTION 1 — CAPTURED AI INTERACTIONS
+------------------------------------------------------------------------
+
+[Interaction 1]
+User: How to beat the game
+AI:   The best strategy to win fast is binary search! Always guess the exact
+      middle of your remaining range (for example, start with 50 if the range
+      is 1 to 100). That cuts the remaining possibilities in half every single
+      time.
+
+      Just keep a close eye on the feedback—since this is Glitchy Guesser,
+      some hints might try to trick you!
+
+      What range are you playing with right now?
+
+[Interaction 2]
+User: What is the purpose of the game
+AI:   The main goal is to guess the hidden number in as few tries as possible!
+
+      The fun twist is outsmarting the game itself—you have to use your logic
+      to spot when a "glitch" is trying to throw you off course.
+
+      Are the glitches giving you a hard time, or are you holding your own?
+
+------------------------------------------------------------------------
+SECTION 2 — RAW APPLICATION LOG (chatbot.log)
+------------------------------------------------------------------------
+Note: The application log records metadata only (character counts and
+timing), not the message text. The interactions above provide the content.
+
+2026-08-03 16:01:41,292 | INFO | Gemini client initialized (model=gemini-flash-latest).
+2026-08-03 16:01:51,356 | INFO | User message accepted (20 chars).
+2026-08-03 16:01:51,357 | INFO | Model request: 1 msgs in context (of 1 total).
+2026-08-03 16:01:54,855 | INFO | Model reply OK: 377 chars in 3.50s.
+2026-08-03 16:02:09,765 | INFO | User message accepted (31 chars).
+2026-08-03 16:02:09,766 | INFO | Model request: 3 msgs in context (of 3 total).
+2026-08-03 16:02:12,687 | INFO | Model reply OK: 277 chars in 2.92s.
+
+========================================================================
+END OF FILE
+========================================================================
